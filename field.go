@@ -28,7 +28,7 @@ type Field struct {
 	password           string
 	nestSelectOne      []*Field
 	nestSelectMultiple []*Field
-	incrementArray     []*Field
+	incrementArray     [][]*Field
 	append             []string
 }
 
@@ -149,14 +149,17 @@ func (f *Field) LoadTemplate(val map[string]any) error {
 			if err != nil {
 				return err
 			}
-			f.incrementArray = make([]*Field, 0)
+			f.incrementArray = make([][]*Field, 0)
+
+			fields := make([]*Field, 0)
 			for _, child := range children {
 				if childField, cok := child.(*Field); cok {
-					f.incrementArray = append(f.incrementArray, childField)
+					fields = append(fields, childField)
 				} else {
 					return errors.Errorf("field %s incrementarray element type is not `Field`", f.ID)
 				}
 			}
+			f.incrementArray = append(f.incrementArray, fields)
 		} else {
 			return errors.Errorf("field kind %s is not list", kind)
 		}
@@ -227,7 +230,12 @@ func (f *Field) DumpTemplate() map[string]any {
 		v := f.dumpList(f.nestSelectMultiple)
 		res[string(f.Kind)] = v
 	case IncrementArray:
-		v := f.dumpList(f.incrementArray)
+		var v []any
+		if len(f.incrementArray) != 0 {
+			v = f.dumpList(f.incrementArray[0])
+		} else {
+			v = make([]any, 0)
+		}
 		res[string(f.Kind)] = v
 	case String, Text, Number, Password:
 		if f.validator != "" {
@@ -282,7 +290,7 @@ func (f *Field) LoadValue(val any) (*Field, error) {
 					break
 				}
 			}
-			if len(field.selectOne) == 0 {
+			if f.required && len(field.selectOne) == 0 {
 				return nil, errors.New("select value invalid")
 			}
 		} else {
@@ -304,6 +312,9 @@ func (f *Field) LoadValue(val any) (*Field, error) {
 					return nil, errors.Errorf("select value '%s' invalid", elemStr)
 				}
 				field.selectMultiple = append(field.selectMultiple, elemStr)
+			}
+			if f.required && len(field.selectMultiple) == 0 {
+				return nil, errors.New("selectarray value invalid")
 			}
 		} else {
 			return nil, errors.New("selectarray: field value is not list")
@@ -366,21 +377,28 @@ func (f *Field) LoadValue(val any) (*Field, error) {
 			return nil, errors.New("nestselectarray: field value is not a map")
 		}
 	case IncrementArray:
-		if v, ok := val.(map[string]any); ok {
-			for _, childField := range f.incrementArray {
-				if childVal, cok := v[childField.ID]; cok {
-					if listVal, lok := childVal.([]any); lok {
-						for _, elem := range listVal {
-							out, err := childField.LoadValue(elem)
-							if err != nil {
-								return nil, err
-							}
-							field.incrementArray = append(field.incrementArray, out)
-						}
+		if len(f.incrementArray) == 0 {
+			return nil, errors.New("incrementarray: template field is empty")
+		}
+		if v, ok := val.([]any); ok {
+			for _, item := range v {
+				vv, vok := item.(map[string]any)
+				if !vok {
+					return nil, errors.New("incrementarray: elem value is not a map")
+				}
+				info := make([]*Field, 0)
+				for _, childField := range f.incrementArray[0] {
+					if fieldVal, fok := vv[childField.ID]; !fok {
+						return nil, errors.Errorf("incrementarray: value of field %s not set", childField.ID)
 					} else {
-						return nil, errors.New("incrementarray: field value is not a list")
+						out, err := childField.LoadValue(fieldVal)
+						if err != nil {
+							return nil, err
+						}
+						info = append(info, out)
 					}
 				}
+				field.incrementArray = append(field.incrementArray, info)
 			}
 		} else {
 			return nil, errors.New("incrementArray: field value is not a map")
@@ -440,16 +458,17 @@ func (f *Field) DumpValue() (any, error) {
 		}
 		return res, nil
 	case IncrementArray:
-		res := make(map[string][]any)
-		for _, field := range f.incrementArray {
-			if _, ok := res[field.ID]; !ok {
-				res[field.ID] = make([]any, 0)
+		res := make([]any, 0)
+		for _, item := range f.incrementArray {
+			val := make(map[string]any)
+			for _, field := range item {
+				v, err := field.DumpValue()
+				if err != nil {
+					return nil, err
+				}
+				val[field.ID] = v
 			}
-			v, err := field.DumpValue()
-			if err != nil {
-				return nil, err
-			}
-			res[field.ID] = append(res[field.ID], v)
+			res = append(res, val)
 		}
 		return res, nil
 	case Append:
