@@ -16,4 +16,6 @@ const (
 	NestSelect      FieldKind = "nestselect"      // nest single field select
 	NestSelectArray FieldKind = "nestselectarray" // nest multiple fields select
 	IncrementArray  FieldKind = "incrementarray"  // increment nest field
+
+	HttpRequest FieldKind = "httprequest" // http request
 )

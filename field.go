@@ -1,7 +1,11 @@
 package go_schema
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -30,6 +34,7 @@ type Field struct {
 	nestSelectMultiple []*Field
 	incrementArray     [][]*Field
 	append             []string
+	httprequest        *HttpField
 }
 
 func (f *Field) LoadTemplate(val map[string]any) error {
@@ -164,6 +169,44 @@ func (f *Field) LoadTemplate(val map[string]any) error {
 			return errors.Errorf("field kind %s is not list", kind)
 		}
 	case String, Text, Number, Password, Append:
+	case HttpRequest:
+		if v, vok := kindVal.(map[string]any); vok {
+			info := &HttpField{}
+			// url
+			if vv, vvok := v["url"].(string); vvok {
+				if _, err := url.Parse(vv); err != nil {
+					return errors.Wrapf(err, "field %s url parse error", kind)
+				}
+				info.Url = vv
+			} else {
+				return errors.Errorf("field kind %s has not subfield `url`", kind)
+			}
+			// method
+			if vv, vvok := v["method"].(string); vvok {
+				switch strings.ToUpper(vv) {
+				case http.MethodGet:
+					info.Method = http.MethodGet
+				case http.MethodPost:
+					info.Method = http.MethodPost
+				default:
+					return errors.Errorf("field %s not support method %s", kind, vv)
+				}
+			} else {
+				return errors.Errorf("field kind %s has not subfield `method`", kind)
+			}
+			// multi-select
+			if vv, vvok := v["multi_select"].(bool); vvok {
+				info.MultiSelect = vv
+			}
+			// user data
+			if vv, vvok := v["user_data"].(string); vvok {
+				info.UserData = vv
+			}
+
+			f.httprequest = info
+		} else {
+			return errors.Errorf("field kind %s is not map", kind)
+		}
 	default:
 		return errors.Errorf("unsupported field kind %s", f.Kind)
 	}
@@ -242,7 +285,12 @@ func (f *Field) DumpTemplate() map[string]any {
 			res["validator"] = f.validator
 		}
 	case Append:
-
+	case HttpRequest:
+		if f.httprequest != nil {
+			if v, err := f.dumpMap(f.httprequest); err == nil {
+				res[string(f.Kind)] = v
+			}
+		}
 	}
 
 	return res
@@ -254,6 +302,18 @@ func (f *Field) dumpList(fields []*Field) []any {
 		res = append(res, field.DumpTemplate())
 	}
 	return res
+}
+
+func (f *Field) dumpMap(info any) (map[string]any, error) {
+	content, err := json.Marshal(info)
+	if err != nil {
+		return nil, err
+	}
+	var out map[string]any
+	if err = json.Unmarshal(content, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (f *Field) LoadValue(val any) (*Field, error) {
@@ -412,6 +472,14 @@ func (f *Field) LoadValue(val any) (*Field, error) {
 		} else {
 			return nil, errors.New("append: field value is not a list")
 		}
+	case HttpRequest:
+		if v, ok := val.([]any); ok {
+			field.httprequest = &HttpField{
+				UserInput: v,
+			}
+		} else {
+			return nil, errors.New("httprequest: field value is not a list")
+		}
 	}
 	return field, nil
 }
@@ -473,6 +541,19 @@ func (f *Field) DumpValue() (any, error) {
 		return res, nil
 	case Append:
 		return f.append, nil
+	case HttpRequest:
+		if f.httprequest == nil {
+			return nil, errors.New("httprequest: field is nil")
+		}
+		if f.httprequest.MultiSelect {
+			return f.httprequest.UserInput, nil
+		} else {
+			res := make([]any, 0)
+			if len(f.httprequest.UserInput) >= 1 {
+				res = append(res, f.httprequest.UserInput[0])
+			}
+			return res, nil
+		}
 	default:
 		return nil, errors.Errorf("unsupported field kind '%s'", f.Kind)
 	}
