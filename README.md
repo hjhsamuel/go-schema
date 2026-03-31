@@ -3,7 +3,7 @@ A library for Markshal/Unmarshal JSON Schema, designed to facilitate flexible fo
 
 ## Usage
 
-```go
+```shell
 go get github.com/hjhsamuel/go-schema
 ```
 
@@ -79,121 +79,258 @@ description
 
 ### select  
 
-- template input
+- template
 
-```json
-{
-  "select": [
-    "A",
-    "B",
-    "C"
-  ]
-}
-```
+    ```json
+    {
+      "select": [
+        "A",
+        "B",
+        "C"
+      ]
+    }
+    ```
 
-- template output
+- value
 
-```json
-{
-  "select": [
-    "A",
-    "B",
-    "C"
-  ]
-}
-```
-
-- value input
-
-```json
-{
-  "select": "A"
-}
-```
-
-- value output
-
-```json
-{
-  "select": "A"
-}
-```
+    ```json
+    {
+      "{id}": "A"
+    }
+    ```
 
 ### selectarray  
 
-- template input
-- template out
-- value input
-- value output
+- template
+
+    ```json
+    {
+      "selectarray": [
+        "A",
+        "B",
+        "C"
+      ]
+    }
+    ```
+
+- value
+
+    ```json
+    {
+      "{id}": [
+        "A",
+        "B"
+      ]
+    }
+    ```
 
 ### string  
 
-- template input
-- template out
-- value input
-- value output
+- template
+- value
+
+    ```json
+    {
+      "{id}": "the value of string field"
+    }
+    ```
 
 ### text  
 
-- template input
-- template out
-- value input
-- value output
+- template
+- value
+
+    ```json
+    {
+      "{id}": "the value of text field"
+    }
+    ```
 
 ### number  
 
-- template input
-- template out
-- value input
-- value output
+- template
+- value
+
+    ```json
+    {
+      "{id}": 1.0
+    }
+    ```
 
 ### password  
 
-- template input
-- template out
-- value input
-- value output
+- template
+- value
+
+    ```json
+    {
+      "{password}": "the value of password field"
+    }
+    ```
 
 ### append  
 
-- template input
-- template out
-- value input
-- value output
+- template
+- value
+
+    ```json
+    {
+      "{id}": [
+        "A",
+        "B"
+      ]
+    }
+    ```
 
 ### array  
 
-- template input
-- template out
-- value input
-- value output
+- template
+
+    ```json
+    {
+      "array": [
+        {
+          "id": "{child A id}",
+          "name": "{child A name}",
+          "kind": "{child A kind}",
+          ...
+        },
+        ...
+      ]
+    }
+    ```
+
+- value
+
+    ```json
+    {
+      "{id}": {
+        "{child A id}": ...,
+        "{child B id}": ...
+      }
+    }
+    ```
 
 ### nestselect  
 
-- template input
-- template out
-- value input
-- value output
+- template
+
+    ```json
+    {
+      "nestselect": [
+        {
+          "id": "{child A id}",
+          "name": "{child A name}",
+          "kind": "{child A kind}",
+          ...
+        },
+        ...
+      ]
+    }
+    ```
+
+- value
+
+    ```json
+    {
+      "{id}": {
+        "{child A id}": ...
+      }
+    }
+    ```
 
 ### nestselectarray  
 
-- template input
-- template out
-- value input
-- value output
+- template
+
+    ```json
+    {
+      "nestselectarray": [
+        {
+          "id": "{child A id}",
+          ...
+        },
+        {
+          "id": "{child B id}",
+          ...
+        },
+        ...
+      ]
+    }
+    ```
+
+- value
+
+    ```json
+    {
+      "{id}": {
+        "{child A id}": ...,
+        "{child B id}": ...,
+        ...
+      }
+    }
+    ```
 
 ### incrementarray  
 
-- template input
-- template out
-- value input
-- value output
+- template
+
+    ```json
+    {
+      "incrementarray": [
+        {
+          "id": "{child id}",
+          ...
+        }
+      ]
+    }
+    ```
+
+- value
+
+    ```json
+    {
+      "{id}": [
+        {
+          "{child id}": ...
+        },
+        {
+          "{child id}": ...
+        },
+        ...
+      ]
+    }
+    ```
 
 ### httprequest 
 
-- template input
-- template out
-- value input
-- value output
+- template
+
+    ```json
+    {
+      "httprequest": {
+        "url": "http://xxx/xx/xx?p1=a&p2=b",
+        "method": "get",
+        "multi_select": true,
+        "user_data": "{user custom data}"
+      }
+    }
+    ```
+
+- value
+
+    ```json
+    {
+      "{id}": [
+        ...,
+        ...
+      ]
+    }
+    ```
 
 
+## Example
+
+```json
+
+```

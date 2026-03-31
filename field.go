@@ -473,9 +473,18 @@ func (f *Field) LoadValue(val any) (*Field, error) {
 			return nil, errors.New("append: field value is not a list")
 		}
 	case HttpRequest:
+		if f.httprequest == nil || val == nil {
+			return nil, nil
+		}
 		if v, ok := val.([]any); ok {
-			field.httprequest = &HttpField{
-				UserInput: v,
+			if f.httprequest.MultiSelect && len(v) != 0 {
+				field.httprequest = &HttpField{
+					UserInput: []any{v[0]},
+				}
+			} else {
+				field.httprequest = &HttpField{
+					UserInput: v,
+				}
 			}
 		} else {
 			return nil, errors.New("httprequest: field value is not a list")
@@ -543,17 +552,9 @@ func (f *Field) DumpValue() (any, error) {
 		return f.append, nil
 	case HttpRequest:
 		if f.httprequest == nil {
-			return nil, errors.New("httprequest: field is nil")
+			return nil, nil
 		}
-		if f.httprequest.MultiSelect {
-			return f.httprequest.UserInput, nil
-		} else {
-			res := make([]any, 0)
-			if len(f.httprequest.UserInput) >= 1 {
-				res = append(res, f.httprequest.UserInput[0])
-			}
-			return res, nil
-		}
+		return f.httprequest.UserInput, nil
 	default:
 		return nil, errors.Errorf("unsupported field kind '%s'", f.Kind)
 	}
