@@ -1,336 +1,334 @@
 # go-schema
-A library for Markshal/Unmarshal JSON Schema, designed to facilitate flexible form rendering
 
-## Usage
+A Go library for marshaling and unmarshaling schema-driven form definitions and values.
 
-```shell
+## Install
+
+```bash
 go get github.com/hjhsamuel/go-schema
 ```
 
-Supported field kind:
+## Supported Field Kinds
 
-- select  
-  single select
-- selectarray  
-  multiple select
-- string  
-  line edit
-- text  
-  text edit
-- number  
-  number edit
-- password  
-  password edit
-- append  
-  array line edit
-- array  
-  nest fields
-- nestselect  
-  nest single field select
-- nestselectarray  
-  nest multiple fields select
-- incrementarray  
-  increment nest field
-- httprequest  
-  http request
+| Kind | Description |
+| --- | --- |
+| `select` | single select |
+| `selectarray` | multiple select |
+| `string` | single-line text |
+| `text` | multi-line text |
+| `number` | number input |
+| `password` | password input |
+| `append` | string list input |
+| `array` | nested fields |
+| `nestselect` | select one nested field set |
+| `nestselectarray` | select multiple nested field sets |
+| `incrementarray` | repeatable nested field set |
+| `httprequest` | remote options selector |
 
+## Quick Start
 
-## Schema
+```go
+package main
 
-all kinds of fields have base json:
+import (
+	"fmt"
 
-```json
-{
-  "id": "", // schema identifier
-  "name": "", // display information
-  "fields": []  // subfields
+	go_schema "github.com/hjhsamuel/go-schema"
+)
+
+func main() {
+	template := map[string]any{
+		"id":   "moduleA",
+		"name": "Module A",
+		"fields": []any{
+			map[string]any{
+				"id":       "title",
+				"name":     "Title",
+				"kind":     "string",
+				"required": true,
+			},
+			map[string]any{
+				"id":     "level",
+				"name":   "Level",
+				"kind":   "select",
+				"select": []any{"low", "high"},
+			},
+		},
+	}
+
+	schema := &go_schema.Schema{}
+	if err := schema.LoadTemplate(template); err != nil {
+		panic(err)
+	}
+
+	values := map[string]any{
+		"moduleA": map[string]any{
+			"title": "demo",
+			"level": "high",
+		},
+	}
+
+	loaded, err := schema.LoadValue(values)
+	if err != nil {
+		panic(err)
+	}
+
+	out, err := loaded.DumpValue()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%#v\n", out)
 }
 ```
 
-## Field
+## Schema Template Format
 
 ```json
 {
-  "id": "",
-  "name": "",
-  "kind": "",
+  "id": "module_id",
+  "name": "Module Name",
+  "fields": []
+}
+```
+
+## Field Template Base Keys
+
+```json
+{
+  "id": "field_id",
+  "name": "Field Name",
+  "kind": "string",
   "required": false,
-  "desc": ""
+  "desc": "description",
+  "validator": "optional validator tag"
 }
 ```
 
-base key:
+- `id`: unique field identifier
+- `name`: display name
+- `kind`: field type
+- `required`: optional, default `false`
+- `desc`: optional field description
+- `validator`: optional validator metadata (used for `string`/`text`/`number`/`password`)
 
-- id  
-field identifier
-- name  
-displayed field name
-- kind  
-field kind
+## Kind-Specific Template and Value Examples
 
-value limit:
+### `select`
 
-- required  
-if field required
-- desc  
-description
-
-
-
-### select  
-
-- template
-
-    ```json
-    {
-      "select": [
-        "A",
-        "B",
-        "C"
-      ]
-    }
-    ```
-
-- value
-
-    ```json
-    {
-      "{id}": "A"
-    }
-    ```
-
-### selectarray  
-
-- template
-
-    ```json
-    {
-      "selectarray": [
-        "A",
-        "B",
-        "C"
-      ]
-    }
-    ```
-
-- value
-
-    ```json
-    {
-      "{id}": [
-        "A",
-        "B"
-      ]
-    }
-    ```
-
-### string  
-
-- template
-- value
-
-    ```json
-    {
-      "{id}": "the value of string field"
-    }
-    ```
-
-### text  
-
-- template
-- value
-
-    ```json
-    {
-      "{id}": "the value of text field"
-    }
-    ```
-
-### number  
-
-- template
-- value
-
-    ```json
-    {
-      "{id}": 1.0
-    }
-    ```
-
-### password  
-
-- template
-- value
-
-    ```json
-    {
-      "{password}": "the value of password field"
-    }
-    ```
-
-### append  
-
-- template
-- value
-
-    ```json
-    {
-      "{id}": [
-        "A",
-        "B"
-      ]
-    }
-    ```
-
-### array  
-
-- template
-
-    ```json
-    {
-      "array": [
-        {
-          "id": "{child A id}",
-          "name": "{child A name}",
-          "kind": "{child A kind}",
-          ...
-        },
-        ...
-      ]
-    }
-    ```
-
-- value
-
-    ```json
-    {
-      "{id}": {
-        "{child A id}": ...,
-        "{child B id}": ...
-      }
-    }
-    ```
-
-### nestselect  
-
-- template
-
-    ```json
-    {
-      "nestselect": [
-        {
-          "id": "{child A id}",
-          "name": "{child A name}",
-          "kind": "{child A kind}",
-          ...
-        },
-        ...
-      ]
-    }
-    ```
-
-- value
-
-    ```json
-    {
-      "{id}": {
-        "{child A id}": ...
-      }
-    }
-    ```
-
-### nestselectarray  
-
-- template
-
-    ```json
-    {
-      "nestselectarray": [
-        {
-          "id": "{child A id}",
-          ...
-        },
-        {
-          "id": "{child B id}",
-          ...
-        },
-        ...
-      ]
-    }
-    ```
-
-- value
-
-    ```json
-    {
-      "{id}": {
-        "{child A id}": ...,
-        "{child B id}": ...,
-        ...
-      }
-    }
-    ```
-
-### incrementarray  
-
-- template
-
-    ```json
-    {
-      "incrementarray": [
-        {
-          "id": "{child id}",
-          ...
-        }
-      ]
-    }
-    ```
-
-- value
-
-    ```json
-    {
-      "{id}": [
-        {
-          "{child id}": ...
-        },
-        {
-          "{child id}": ...
-        },
-        ...
-      ]
-    }
-    ```
-
-### httprequest 
-
-- template
-
-    ```json
-    {
-      "httprequest": {
-        "url": "http://xxx/xx/xx?p1=a&p2=b",
-        "method": "get",
-        "multi_select": true,
-        "user_data": "{user custom data}"
-      }
-    }
-    ```
-
-- value
-
-    ```json
-    {
-      "{id}": [
-        ...,
-        ...
-      ]
-    }
-    ```
-
-
-## Example
+Template:
 
 ```json
-
+{
+  "kind": "select",
+  "select": ["A", "B", "C"]
+}
 ```
+
+Value:
+
+```json
+{
+  "{id}": "A"
+}
+```
+
+### `selectarray`
+
+Template:
+
+```json
+{
+  "kind": "selectarray",
+  "selectarray": ["A", "B", "C"]
+}
+```
+
+Value:
+
+```json
+{
+  "{id}": ["A", "B"]
+}
+```
+
+### `string` / `text` / `password`
+
+Template:
+
+```json
+{
+  "kind": "string"
+}
+```
+
+Value:
+
+```json
+{
+  "{id}": "input value"
+}
+```
+
+### `number`
+
+Template:
+
+```json
+{
+  "kind": "number"
+}
+```
+
+Value:
+
+```json
+{
+  "{id}": 1.0
+}
+```
+
+### `append`
+
+Template:
+
+```json
+{
+  "kind": "append"
+}
+```
+
+Value:
+
+```json
+{
+  "{id}": ["A", "B"]
+}
+```
+
+### `array`
+
+Template:
+
+```json
+{
+  "kind": "array",
+  "array": [
+    { "id": "childA", "name": "Child A", "kind": "string" },
+    { "id": "childB", "name": "Child B", "kind": "number" }
+  ]
+}
+```
+
+Value:
+
+```json
+{
+  "{id}": {
+    "childA": "text",
+    "childB": 1.0
+  }
+}
+```
+
+### `nestselect`
+
+Template:
+
+```json
+{
+  "kind": "nestselect",
+  "nestselect": [
+    { "id": "optA", "name": "Option A", "kind": "string" },
+    { "id": "optB", "name": "Option B", "kind": "number" }
+  ]
+}
+```
+
+Value (select one):
+
+```json
+{
+  "{id}": {
+    "optA": "value"
+  }
+}
+```
+
+### `nestselectarray`
+
+Template:
+
+```json
+{
+  "kind": "nestselectarray",
+  "nestselectarray": [
+    { "id": "optA", "name": "Option A", "kind": "string" },
+    { "id": "optB", "name": "Option B", "kind": "number" }
+  ]
+}
+```
+
+Value (select multiple):
+
+```json
+{
+  "{id}": {
+    "optA": "value",
+    "optB": 2.0
+  }
+}
+```
+
+### `incrementarray`
+
+Template:
+
+```json
+{
+  "kind": "incrementarray",
+  "incrementarray": [
+    { "id": "child", "name": "Child", "kind": "string" }
+  ]
+}
+```
+
+Value (repeatable groups):
+
+```json
+{
+  "{id}": [
+    { "child": "v1" },
+    { "child": "v2" }
+  ]
+}
+```
+
+### `httprequest`
+
+Template:
+
+```json
+{
+  "kind": "httprequest",
+  "httprequest": {
+    "url": "https://example.com/api/options?p1=a&p2=b",
+    "method": "GET",
+    "multi_select": true,
+    "user_data": "custom data"
+  }
+}
+```
+
+Value:
+
+```json
+{
+  "{id}": ["option_a", "option_b"]
+}
+```
+
+## Notes
+
+- For `number`, input should be `float64` when decoded from JSON into `map[string]any`.
+- `httprequest.method` supports only `GET` and `POST` (case-insensitive in template input).
+- `Schema.LoadValue` expects input format as `{schema_id: {field_id: value}}`.
