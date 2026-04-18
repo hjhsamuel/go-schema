@@ -74,8 +74,11 @@ func (s *Schema) LoadValue(val map[string]any) (*Schema, error) {
 
 	for _, field := range s.Fields {
 		fieldVal, dok := fieldVals[field.ID]
-		if field.required && !dok {
-			return nil, errors.Errorf("field %s is required", field.ID)
+		if !dok {
+			if field.required {
+				return nil, errors.Errorf("field %s is required", field.ID)
+			}
+			continue
 		}
 
 		f, err := field.LoadValue(fieldVal)

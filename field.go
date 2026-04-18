@@ -343,12 +343,17 @@ func (f *Field) LoadValue(val any) (*Field, error) {
 		}
 	case Select:
 		if v, ok := val.(string); ok {
+			matched := false
 			field.selectOne = make([]string, 0)
 			for _, selectVal := range f.selectOne {
 				if selectVal == v {
 					field.selectOne = append(field.selectOne, selectVal)
+					matched = true
 					break
 				}
+			}
+			if !matched {
+				return nil, errors.Errorf("select value '%s' invalid", v)
 			}
 			if f.required && len(field.selectOne) == 0 {
 				return nil, errors.New("select value invalid")
@@ -473,17 +478,27 @@ func (f *Field) LoadValue(val any) (*Field, error) {
 			return nil, errors.New("append: field value is not a list")
 		}
 	case HttpRequest:
-		if f.httprequest == nil || val == nil {
-			return nil, nil
+		if f.httprequest == nil {
+			return nil, errors.New("httprequest: template config is nil")
+		}
+		if val == nil {
+			if f.required {
+				return nil, errors.New("httprequest: field is required")
+			}
+			field.httprequest = &HttpField{UserInput: []any{}}
+			break
 		}
 		if v, ok := val.([]any); ok {
-			if f.httprequest.MultiSelect && len(v) != 0 {
-				field.httprequest = &HttpField{
-					UserInput: []any{v[0]},
+			if len(v) == 0 {
+				if f.required {
+					return nil, errors.New("httprequest: field is required")
 				}
+				field.httprequest = &HttpField{UserInput: []any{}}
 			} else {
-				field.httprequest = &HttpField{
-					UserInput: v,
+				if f.httprequest.MultiSelect {
+					field.httprequest = &HttpField{UserInput: v}
+				} else {
+					field.httprequest = &HttpField{UserInput: []any{v[0]}}
 				}
 			}
 		} else {
@@ -506,7 +521,10 @@ func (f *Field) DumpValue() (any, error) {
 		}
 		return res, nil
 	case Select:
-		return f.selectOne[0], nil
+		if len(f.selectOne) != 0 {
+			return f.selectOne[0], nil
+		}
+		return nil, errors.New("select: field value is empty")
 	case SelectArray:
 		return f.selectMultiple, nil
 	case String:
@@ -518,12 +536,15 @@ func (f *Field) DumpValue() (any, error) {
 	case Password:
 		return f.password, nil
 	case NestSelect:
-		child := f.nestSelectOne[0]
-		childVal, err := child.DumpValue()
-		if err != nil {
-			return nil, err
+		if len(f.nestSelectOne) != 0 {
+			child := f.nestSelectOne[0]
+			childVal, err := child.DumpValue()
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{child.ID: childVal}, nil
 		}
-		return map[string]any{child.ID: childVal}, nil
+		return nil, errors.New("nestselect: field value is empty")
 	case NestSelectArray:
 		res := make(map[string]any)
 		for _, field := range f.nestSelectMultiple {
